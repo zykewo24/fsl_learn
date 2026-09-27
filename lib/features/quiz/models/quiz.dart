@@ -20,7 +20,9 @@ extension QuizModeX on QuizMode {
       };
 
   String get blurb => switch (this) {
-        QuizMode.signIt => 'Show the sign with your camera',
+        // Wording matters here: this used to promise a picture, and the picture
+        // is exactly what was removed.
+        QuizMode.signIt => "You'll see the word, not the sign. Produce it.",
         QuizMode.identifyIt => 'Pick the sign that matches the picture',
       };
 }
@@ -48,6 +50,36 @@ class QuizQuestion {
   });
 
   bool isCorrectOption(int index) => index == correctIndex;
+
+  /// The word shown to the learner in [QuizMode.signIt], e.g. `Red`.
+  ///
+  /// Deliberately text only. Showing the reference image would turn the question
+  /// into an imitation exercise: a learner can copy the picture without having
+  /// recalled anything, so the quiz measures their ability to follow a
+  /// reference rather than their knowledge of the sign. Naming the sign and
+  /// asking for it back is what actually tests production.
+  ///
+  /// The image is still shown *after* they answer, in the verdict, where seeing
+  /// it teaches rather than gives away.
+  String get promptLabel {
+    final title = sign.title.trim();
+    if (title.isNotEmpty) return title;
+
+    // Fall back to the recogniser's own label, which is shouty and underscored
+    // ("EXCUSE_ME"), and make it read as a word.
+    final raw = sign.aiLabel.trim();
+    final words = raw
+        .toLowerCase()
+        .split('_')
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+
+    // A label made only of separators would render a blank card, leaving the
+    // learner asked to produce a sign with nothing to go on.
+    if (words.isNotEmpty) return words;
+    return raw.isNotEmpty ? raw : 'This sign';
+  }
 }
 
 /// One answered question.

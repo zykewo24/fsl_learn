@@ -177,12 +177,18 @@ class _QuestionPane extends ConsumerWidget {
               children: [
                 Text(
                   state.mode == QuizMode.signIt
-                      ? 'Make this sign'
+                      ? 'Show me this sign'
                       : 'Which sign is this?',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 12),
-                _SignImage(sign: question.sign, size: 180),
+                const SizedBox(height: 16),
+                // Production is prompted by the word, never by the picture.
+                // Reception (identify it) still needs the picture, because
+                // naming a sign you can see is the whole point of that mode.
+                if (state.mode == QuizMode.signIt)
+                  _WordPrompt(label: question.promptLabel)
+                else
+                  _SignImage(sign: question.sign, size: 180),
                 const SizedBox(height: 20),
                 if (state.mode == QuizMode.signIt)
                   QuizCamera(
@@ -383,6 +389,52 @@ class _ResultPane extends StatelessWidget {
   String _labelFor(QuizState state, int i) {
     if (i < state.questions.length) return state.questions[i].sign.title;
     return 'Sign ${i + 1}';
+  }
+}
+
+/// The sign's name, shown instead of its picture in [QuizMode.signIt].
+///
+/// Sized and weighted to be the focal point of the screen, since it is the
+/// only information the learner gets before producing the sign.
+class _WordPrompt extends StatelessWidget {
+  final String label;
+
+  const _WordPrompt({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No reference picture - recall the handshape',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer.withValues(
+                alpha: 0.75,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

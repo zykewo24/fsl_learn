@@ -285,6 +285,96 @@ void main() {
     });
   });
 
+  group('the sign-it prompt', () {
+    test('shows the word, not the recogniser label', () {
+      final q = QuizQuestion(sign: sign('red', 'RED', title: 'Red'));
+      expect(q.promptLabel, 'Red');
+    });
+
+    test('never leaks the underlying handshape', () {
+      // RED is performed with the X hand and FISH with a 5. If the prompt ever
+      // showed the handshape the question would give itself away, which is
+      // precisely the "too easy" problem this replaced.
+      final red = QuizQuestion(sign: sign('red', 'RED', title: 'Red'));
+      expect(red.promptLabel.toUpperCase(), isNot(contains('X')));
+
+      final fish = QuizQuestion(sign: sign('fish', 'FISH', title: 'Fish'));
+      expect(fish.promptLabel.toUpperCase(), isNot(contains('5')));
+    });
+
+    test('does not fall back to an image path', () {
+      final q = QuizQuestion(sign: sign('cat', 'CAT', title: 'Cat'));
+      expect(q.promptLabel, isNot(contains('assets')));
+      expect(q.promptLabel, isNot(contains('.png')));
+    });
+
+    test('falls back to a readable word when there is no title', () {
+      final q = QuizQuestion(
+        sign: LessonSignModel(
+          id: 'e',
+          lessonId: 'L1',
+          title: '',
+          description: '',
+          aiLabel: 'EXCUSE_ME',
+          difficulty: 'easy',
+          isActive: true,
+          sortOrder: 0,
+        ),
+      );
+      expect(q.promptLabel, 'Excuse Me');
+    });
+
+    test('falls back cleanly for a blank title and a single-word label', () {
+      final q = QuizQuestion(
+        sign: LessonSignModel(
+          id: 'w',
+          lessonId: 'L1',
+          title: '   ',
+          description: '',
+          aiLabel: 'WATER',
+          difficulty: 'easy',
+          isActive: true,
+          sortOrder: 0,
+        ),
+      );
+      expect(q.promptLabel, 'Water');
+    });
+
+    test('survives a label that is all separators', () {
+      // Defensive: an empty result here would render a blank card and the
+      // learner would be asked to sign nothing.
+      final q = QuizQuestion(
+        sign: LessonSignModel(
+          id: 'x',
+          lessonId: 'L1',
+          title: '',
+          description: '',
+          aiLabel: '___',
+          difficulty: 'easy',
+          isActive: true,
+          sortOrder: 0,
+        ),
+      );
+      expect(q.promptLabel, isNotEmpty);
+    });
+
+    test('every question in a real quiz has a non-empty prompt', () {
+      final letters = [
+        for (final l in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) sign(l, l),
+      ];
+      final questions = QuizBuilder.build(
+        letters,
+        QuizMode.signIt,
+        count: 8,
+        random: Random(9),
+      );
+      expect(questions, isNotEmpty);
+      for (final q in questions) {
+        expect(q.promptLabel.trim(), isNotEmpty, reason: q.sign.id);
+      }
+    });
+  });
+
   group('progression', () {
     test('starts in progress on the first question', () {
       final c = container();
