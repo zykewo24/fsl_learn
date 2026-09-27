@@ -102,7 +102,7 @@ class EmergencyMotionRecognizer {
     lastEmergency = null;
 
     final now = _clock();
-    final sample = _MotionSample(x: x, y: y);
+    final sample = _MotionSample(x: x, y: y, t: now);
 
     if (_hasLast) {
       // Skip near-identical consecutive frames so a held pose does not
@@ -224,8 +224,13 @@ class EmergencyMotionRecognizer {
 class _MotionSample {
   final double x;
   final double y;
+
+  /// Stamped from the recognizer's injected clock rather than the wall clock,
+  /// so the sliding window in [EmergencyMotionRecognizer.feedRaw] actually
+  /// honours [EmergencyMotionRecognizer.setClock]. See the identical note in
+  /// `greeting_motion_recognizer.dart` for why the wall clock made that window
+  /// a no-op under a test clock.
   final DateTime t;
 
-  _MotionSample({required this.x, required this.y})
-      : t = DateTime.now();
+  _MotionSample({required this.x, required this.y, required this.t});
 }

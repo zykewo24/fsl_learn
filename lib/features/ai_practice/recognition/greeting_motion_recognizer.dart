@@ -81,7 +81,7 @@ class GreetingMotionRecognizer {
     lastGreeting = null;
 
     final now = _clock();
-    final sample = _MotionSample(x: x, y: y);
+    final sample = _MotionSample(x: x, y: y, t: now);
 
     if (_hasLast) {
       // Skip near-identical consecutive frames so a held pose does not
@@ -213,8 +213,15 @@ class GreetingMotionRecognizer {
 class _MotionSample {
   final double x;
   final double y;
+
+  /// Stamped from the recognizer's injected clock rather than the wall clock,
+  /// so the sliding window in [GreetingMotionRecognizer.feedRaw] actually
+  /// honours [GreetingMotionRecognizer.setClock]. Stamping it with
+  /// `DateTime.now()` made that window a no-op under a test clock: every
+  /// sample looked simultaneous, so nothing was ever pruned, and a test
+  /// asserting that stale samples are forgotten would have passed for the
+  /// wrong reason.
   final DateTime t;
 
-  _MotionSample({required this.x, required this.y})
-      : t = DateTime.now();
+  _MotionSample({required this.x, required this.y, required this.t});
 }

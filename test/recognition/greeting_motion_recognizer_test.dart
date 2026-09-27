@@ -55,6 +55,38 @@ void main() {
     expect(r.lastGreeting, isNull);
   });
 
+  test('forgets samples that fall outside the sliding window', () {
+    final r = fresh();
+    // A vertical wave, then a long pause, then a single far-away sample.
+    // The wave's reversals are >900ms stale by the last frame, so they must
+    // have been pruned: only 1 sample remains, which is below the 4-sample
+    // floor, so nothing can be classified.
+    wave(r, ys: [0.20, 0.50, 0.25, 0.52, 0.22, 0.50]);
+    expect(r.lastGreeting, 'KUMASTA');
+
+    // Push the clock well past the 900ms window between frames.
+    for (var i = 0; i < 20; i++) {
+      r.feedRaw(0.5, 0.02);
+    }
+    expect(r.lastGreeting, isNull);
+  });
+
+  test('a held hand does not keep replaying a stale wave', () {
+    final r = fresh();
+    wave(r, ys: [0.20, 0.50, 0.25, 0.52, 0.22, 0.50]);
+    expect(r.lastGreeting, 'KUMASTA');
+
+    // Now hold perfectly still. Each call advances the test clock by 50ms but
+    // contributes no sample (the near-identical-frame filter drops it), so
+    // after ~18 calls the wave has aged out of the 900ms window and there is
+    // nothing left to classify. Without the window being honoured this would
+    // keep reporting KUMASTA forever.
+    for (var i = 0; i < 20; i++) {
+      r.feedRaw(0.50, 0.50);
+    }
+    expect(r.lastGreeting, isNull);
+  });
+
   test('isGreetingLabel categorizes the three greetings', () {
     expect(GreetingMotionRecognizer.isGreetingLabel('Kumasta'), isTrue);
     expect(GreetingMotionRecognizer.isGreetingLabel('salamat'), isTrue);
