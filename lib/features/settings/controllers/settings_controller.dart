@@ -9,6 +9,7 @@ class SettingsController extends Notifier<SettingsState> {
   static const _kSound = 'settings.soundEffects';
   static const _kAutoAdvance = 'settings.autoAdvance';
   static const _kCameraLens = 'settings.cameraLens';
+  static const _kHoldToConfirm = 'settings.holdToConfirm';
 
   bool _loaded = false;
   SharedPreferences? _prefs;
@@ -40,11 +41,22 @@ class SettingsController extends Notifier<SettingsState> {
           ? CameraLens.back
           : CameraLens.front;
 
+      // A missing key must not read as Off, or upgrading from a build that
+      // had no such setting would silently hand every existing user the old
+      // instant-completion behaviour.
+      final holdRaw = prefs.containsKey(_kHoldToConfirm)
+          ? prefs.getString(_kHoldToConfirm)
+          : null;
+      final hold = holdRaw == null
+          ? HoldToConfirm.seconds3
+          : HoldToConfirm.fromStorage(holdRaw);
+
       state = SettingsState(
         hapticFeedback: haptic,
         soundEffects: sound,
         autoAdvance: autoAdvance,
         cameraLens: lens,
+        holdToConfirm: hold,
       );
     } catch (_) {
       _loaded = false;
@@ -78,5 +90,11 @@ class SettingsController extends Notifier<SettingsState> {
     state = state.copyWith(cameraLens: lens);
     final prefs = await _cachedPrefs();
     await prefs.setString(_kCameraLens, lens == CameraLens.back ? 'back' : 'front');
+  }
+
+  Future<void> setHoldToConfirm(HoldToConfirm value) async {
+    state = state.copyWith(holdToConfirm: value);
+    final prefs = await _cachedPrefs();
+    await prefs.setString(_kHoldToConfirm, value.storageValue);
   }
 }

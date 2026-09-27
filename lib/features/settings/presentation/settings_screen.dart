@@ -80,6 +80,34 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (v) =>
                     ref.read(settingsProvider.notifier).setAutoAdvance(v),
               ),
+              const _Divider(),
+              _SegmentTile(
+                icon: Icons.timer_outlined,
+                title: 'Hold to confirm',
+                subtitle:
+                    'How long a sign must be held steady before it counts as completed',
+                value: settings.holdToConfirm.label,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final option in HoldToConfirm.values) ...[
+                        _ChoiceChip(
+                          label: option.label,
+                          selected:
+                              settings.holdToConfirm == option,
+                          onSelected: () => ref
+                              .read(settingsProvider.notifier)
+                              .setHoldToConfirm(option),
+                        ),
+                        if (option != HoldToConfirm.values.last)
+                          const SizedBox(width: 8),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 24),

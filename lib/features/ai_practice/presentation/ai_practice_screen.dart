@@ -21,6 +21,7 @@ import '../models/recognition_result.dart';
 import '../providers/ai_session_provider.dart';
 import '../recognition/emergency_motion_recognizer.dart';
 import '../recognition/gesture_recognizer.dart';
+import '../recognition/dwell_gate.dart';
 import '../recognition/greeting_motion_recognizer.dart';
 import '../services/detection_stream.dart';
 import '../widgets/confetti_widget.dart';
@@ -135,6 +136,17 @@ class _AiPracticeScreenState
   bool _showSignComplete = false;
   Timer? _signCompleteTimer;
 
+  /// Requires a recognised sign to be held steady before it is recorded as
+  /// completed, so a sign that merely flashed past during a hand transition
+  /// cannot mark itself mastered. Configured via Settings > Hold to confirm.
+  final DwellGate _dwellGate = DwellGate(
+    requiredHold: const Duration(seconds: 3),
+  );
+
+  /// Hold progress for the on-screen indicator, republished every detection
+  /// frame by [_feedDwell].
+  final ValueNotifier<double> _holdProgress = ValueNotifier(0);
+
   final Set<String> _knownCompletedIds = {};
   final ValueNotifier<_OverlayFrame?> _overlay = ValueNotifier(null);
 
@@ -238,6 +250,15 @@ class _AiPracticeScreenState
       if (!mounted) return;
       final settings = ref.read(settingsProvider);
       await CameraControlService.setLensFacing(settings.cameraLens);
+      _dwellGate.setRequiredHold(settings.holdToConfirm.duration);
+
+      // Keep the gate in step if the user changes the setting without leaving
+      // practice. setRequiredHold drops any hold in progress, which is the
+      // right behaviour: partial progress measured against a different
+      // duration would be meaningless.
+      ref.listen(settingsProvider.select((s) => s.holdToConfirm), (_, next) {
+        _dwellGate.setRequiredHold(next.duration);
+      });
 
       // The native camera_preview platform view owns the camera and the
       // hand-landmarker, so there is nothing else to await here. Clear
@@ -260,6 +281,7 @@ class _AiPracticeScreenState
     _signCompleteTimer?.cancel();
     _nailedItTimer?.cancel();
     _overlay.dispose();
+    _holdProgress.dispose();
     _recognitionDebug.dispose();
     _completionAnim.dispose();
     // Drop the previous lesson's session state so the next screen (or the
@@ -407,6 +429,7 @@ class _AiPracticeScreenState
 
     if (matchedLabel == null) {
       _lastMatchLabel = null;
+      _feedDwell(null);
       return;
     }
 
@@ -417,10 +440,15 @@ class _AiPracticeScreenState
       confidence: matchConfidence,
     );
 
-    if (signs.isEmpty) return;
+    if (signs.isEmpty) {
+      _lastMatchLabel = null;
+      _feedDwell(null);
+      return;
+    }
 
     if (matchConfidence < _completionThreshold) {
       _lastMatchLabel = null;
+      _feedDwell(null);
       return;
     }
 
@@ -437,11 +465,16 @@ class _AiPracticeScreenState
 
     if (matchedSign == null) {
       _lastMatchLabel = null;
+      _feedDwell(null);
       return;
     }
 
+    // Two-frame debounce, as before. This is a noise filter over the
+    // ~20fps detection stream, not a hold - the dwell below is what makes a
+    // sign count as completed.
     if (_lastMatchLabel != label) {
       _lastMatchLabel = label;
+      _feedDwell(null);
       return;
     }
 
@@ -451,7 +484,17 @@ class _AiPracticeScreenState
             .contains(matchedSign.id) ??
         false;
 
-    if (alreadyCompleted) return;
+    if (alreadyCompleted) {
+      _lastMatchLabel = null;
+      _feedDwell(null);
+      return;
+    }
+
+    // The match is stable and confident, so start (or continue) the hold. The
+    // commit below only runs on the frame the hold completes.
+    final update = _feedDwell(matchedSign.id);
+
+    if (!update.justCompleted) return;
 
     if (!_knownCompletedIds.contains(matchedSign.id)) {
       _knownCompletedIds.add(matchedSign.id);
@@ -467,6 +510,18 @@ class _AiPracticeScreenState
     _playCompletionFeedback();
 
     _onFocusedSignMastered(matchedSign);
+  }
+
+  /// Advances the dwell gate for this frame and republishes its progress for
+  /// the on-screen hold indicator.
+  ///
+  /// Passing a null [signId] is what makes the hold pause: it is called from
+  /// every path where the match is lost, so the hold cannot quietly accumulate
+  /// while the learner is mid-transition.
+  DwellUpdate _feedDwell(String? signId) {
+    final update = _dwellGate.feed(signId: signId);
+    _holdProgress.value = signId == null ? 0.0 : update.progress;
+    return update;
   }
 
   /// Persists a sign completion to Supabase, then refreshes the derived
@@ -1116,6 +1171,51 @@ class _AiPracticeScreenState
                       : frame.correct
                           ? AppColors.success
                           : AppColors.danger,
+                ),
+              ),
+            );
+          },
+        ),
+        // Hold-to-confirm ring. Fills as the learner keeps the sign steady, so
+        // the wait is legible rather than mysterious. Hidden when nothing is
+        // being held.
+        ValueListenableBuilder<double>(
+          valueListenable: _holdProgress,
+          builder: (context, progress, _) {
+            if (progress <= 0) return const SizedBox.shrink();
+
+            return IgnorePointer(
+              ignoring: true,
+              child: Align(
+                alignment: const Alignment(0, 0.62),
+                child: SizedBox(
+                  width: 96,
+                  height: 96,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox.expand(
+                        child: CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 6,
+                          backgroundColor: Colors.white24,
+                          valueColor:
+                              const AlwaysStoppedAnimation(AppColors.success),
+                        ),
+                      ),
+                      Text(
+                        '${(progress * 100).round()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(blurRadius: 6, color: Colors.black87),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
