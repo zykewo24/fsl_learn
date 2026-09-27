@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/ai_practice/models/practice_session_args.dart';
 import '../../features/ai_practice/presentation/ai_practice_screen.dart';
 import '../../features/ai_practice/presentation/media_pipe_test_screen.dart';
+import '../../features/quiz/presentation/quiz_screen.dart';
 import '../../models/lesson_model.dart';
 import '../routes.dart';
 
@@ -41,6 +42,17 @@ class PracticeRoutes {
       path: AppRoutes.cameraTest,
       builder: (context, state) {
         return const MediaPipeTestScreen();
+      },
+    ),
+
+    GoRoute(
+      path: AppRoutes.quiz,
+      builder: (context, state) {
+        final lesson = state.extra;
+        if (lesson is! LessonModel) {
+          throw StateError('quiz requires a LessonModel as extra');
+        }
+        return QuizScreen(lesson: lesson);
       },
     ),
   ];

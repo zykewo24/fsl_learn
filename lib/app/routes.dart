@@ -13,6 +13,7 @@ class AppRoutes {
   static const String practiceHistory = '/practice/history';
   static const String practiceCalibration = '/practice/calibration';
   static const String cameraTest = '/practice/camera-test';
+  static const String quiz = '/practice/quiz';
 
   static const String progress = '/progress';
   static const String profile = '/profile';

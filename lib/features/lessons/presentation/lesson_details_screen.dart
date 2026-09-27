@@ -222,6 +222,30 @@ class LessonDetailsScreen extends ConsumerWidget {
                       ),
                     ),
 
+                    const SizedBox(height: 12),
+
+                    // Test yourself on this lesson. Placed next to practice so
+                    // the two ways of using the lesson sit together.
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.quiz_outlined),
+                        label: const Text('Take a Quiz'),
+                        onPressed: () {
+                          context.push(
+                            AppRoutes.quiz,
+                            extra: lesson,
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+
                     const SizedBox(height: 24),
 
                     // Section header

@@ -25,6 +25,7 @@ import '../recognition/feedback_engine.dart';
 import '../recognition/gesture_recognizer.dart';
 import '../recognition/dwell_gate.dart';
 import '../recognition/greeting_motion_recognizer.dart';
+import '../recognition/sign_label.dart';
 import '../services/detection_stream.dart';
 import '../widgets/confetti_widget.dart';
 import '../widgets/hand_overlay_painter.dart';
@@ -35,37 +36,10 @@ import '../widgets/sign_tutorial_card.dart';
 /// Colors and Animals intermediate lessons use static signs whose frozen
 /// handshape is exactly a letters/digit (e.g. RED uses the X handshape),
 /// so their word labels map to that handshape for camera verification.
-const Map<String, String> _shapeLabelByWord = {
-  'ZERO': '0',
-  'ONE': '1',
-  'TWO': '2',
-  'THREE': '3',
-  'FOUR': '4',
-  'FIVE': '5',
-  'SIX': '6',
-  'SEVEN': '7',
-  'EIGHT': '8',
-  'NINE': '9',
-  // Colors (static handshapes)
-  'RED': 'X',
-  'BLUE': 'B',
-  'GREEN': 'G',
-  'ORANGE': 'C',
-  'PURPLE': 'P',
-  'YELLOW': 'Y',
-  // Animals (static handshapes)
-  'BIRD': 'G',
-  'CAT': 'F',
-  'COW': 'Y',
-  'FROG': 'V',
-  'LION': 'C',
-  'FISH': '5',
-};
-
-String _canonicalLabel(String raw) {
-  final value = raw.trim().toUpperCase();
-  return _shapeLabelByWord[value] ?? value;
-}
+///
+/// The table itself now lives in `recognition/sign_label.dart` so the quiz and
+/// the practice screen cannot disagree about what a label means.
+String _canonicalLabel(String raw) => canonicalSignLabel(raw);
 
 class _OverlayFrame {
   final DetectionResult detection;
