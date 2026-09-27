@@ -108,6 +108,17 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              const _Divider(),
+              _SwitchTile(
+                icon: Icons.tips_and_updates_outlined,
+                title: 'Corrective feedback',
+                subtitle:
+                    'Tell me what to fix, e.g. "straighten your index finger"',
+                value: settings.correctionFeedback,
+                onChanged: (v) => ref
+                    .read(settingsProvider.notifier)
+                    .setCorrectionFeedback(v),
+              ),
             ],
           ),
           const SizedBox(height: 24),

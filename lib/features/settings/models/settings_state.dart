@@ -59,12 +59,17 @@ class SettingsState {
   /// completed. See [HoldToConfirm].
   final HoldToConfirm holdToConfirm;
 
+  /// Show specific, per-finger corrections while practising, e.g. "straighten
+  /// your index finger", instead of only a pass/fail indication.
+  final bool correctionFeedback;
+
   const SettingsState({
     this.hapticFeedback = true,
     this.soundEffects = true,
     this.autoAdvance = true,
     this.cameraLens = CameraLens.front,
     this.holdToConfirm = HoldToConfirm.seconds3,
+    this.correctionFeedback = true,
   });
 
   SettingsState copyWith({
@@ -73,6 +78,7 @@ class SettingsState {
     bool? autoAdvance,
     CameraLens? cameraLens,
     HoldToConfirm? holdToConfirm,
+    bool? correctionFeedback,
   }) {
     return SettingsState(
       hapticFeedback: hapticFeedback ?? this.hapticFeedback,
@@ -80,6 +86,7 @@ class SettingsState {
       autoAdvance: autoAdvance ?? this.autoAdvance,
       cameraLens: cameraLens ?? this.cameraLens,
       holdToConfirm: holdToConfirm ?? this.holdToConfirm,
+      correctionFeedback: correctionFeedback ?? this.correctionFeedback,
     );
   }
 }

@@ -10,6 +10,7 @@ class SettingsController extends Notifier<SettingsState> {
   static const _kAutoAdvance = 'settings.autoAdvance';
   static const _kCameraLens = 'settings.cameraLens';
   static const _kHoldToConfirm = 'settings.holdToConfirm';
+  static const _kCorrectionFeedback = 'settings.correctionFeedback';
 
   bool _loaded = false;
   SharedPreferences? _prefs;
@@ -51,12 +52,17 @@ class SettingsController extends Notifier<SettingsState> {
           ? HoldToConfirm.seconds3
           : HoldToConfirm.fromStorage(holdRaw);
 
+      // Same reasoning as the hold: absent means "on", so upgrading an existing
+      // install does not silently drop the corrections.
+      final correctionFeedback = prefs.getBool(_kCorrectionFeedback) ?? true;
+
       state = SettingsState(
         hapticFeedback: haptic,
         soundEffects: sound,
         autoAdvance: autoAdvance,
         cameraLens: lens,
         holdToConfirm: hold,
+        correctionFeedback: correctionFeedback,
       );
     } catch (_) {
       _loaded = false;
@@ -96,5 +102,11 @@ class SettingsController extends Notifier<SettingsState> {
     state = state.copyWith(holdToConfirm: value);
     final prefs = await _cachedPrefs();
     await prefs.setString(_kHoldToConfirm, value.storageValue);
+  }
+
+  Future<void> setCorrectionFeedback(bool value) async {
+    state = state.copyWith(correctionFeedback: value);
+    final prefs = await _cachedPrefs();
+    await prefs.setBool(_kCorrectionFeedback, value);
   }
 }

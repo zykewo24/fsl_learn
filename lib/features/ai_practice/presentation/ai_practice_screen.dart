@@ -21,6 +21,7 @@ import '../models/recognition_result.dart';
 import '../providers/ai_session_provider.dart';
 import '../recognition/emergency_motion_recognizer.dart';
 import '../recognition/everyday_sign_recognizer.dart';
+import '../recognition/feedback_engine.dart';
 import '../recognition/gesture_recognizer.dart';
 import '../recognition/dwell_gate.dart';
 import '../recognition/greeting_motion_recognizer.dart';
@@ -69,7 +70,21 @@ String _canonicalLabel(String raw) {
 class _OverlayFrame {
   final DetectionResult detection;
   final bool correct;
-  const _OverlayFrame(this.detection, this.correct);
+
+  /// Live corrective advice for the sign being attempted, most important
+  /// first. Empty when the attempt is correct, or when the sign has no
+  /// handshape reference to compare against.
+  final List<Correction> corrections;
+
+  /// How closely the attempt matches its reference, `0..1`. 1 is exact.
+  final double closeness;
+
+  const _OverlayFrame(
+    this.detection,
+    this.correct, {
+    this.corrections = const [],
+    this.closeness = 0,
+  });
 }
 
 /// Per-frame snapshot of the recognizer output for the live debug readout.
@@ -118,6 +133,8 @@ class _AiPracticeScreenState
       EmergencyMotionRecognizer();
 
   final EverydaySignRecognizer _everydayRecognizer = EverydaySignRecognizer();
+
+  final FeedbackEngine _feedbackEngine = FeedbackEngine();
 
   StreamSubscription<DetectionResult>? _subscription;
 
@@ -435,8 +452,35 @@ class _AiPracticeScreenState
 
     final isCorrect = staticallyMatched && matchedLabel != null;
 
+    // Work out what the learner is doing wrong, so the feedback pill can say
+    // something actionable instead of "form the X sign". Only computed on a
+    // miss: when the sign is already recognised there is nothing to correct,
+    // and the engine's whole job is comparing against a reference.
+    var corrections = const <Correction>[];
+    var closeness = 0.0;
+    // There is only a single sign to correct while focusing, or in a
+    // one-sign lesson. With a list of signs on screen and no focus there is no
+    // way to know which one the learner is attempting, so no advice is given
+    // rather than advice about the wrong sign.
+    final target = _currentTarget;
+    if (!isCorrect &&
+        target != null &&
+        ref.read(settingsProvider).correctionFeedback) {
+      final feedback = _feedbackEngine.evaluate(
+        _canonicalLabel(target.aiLabel),
+        result.landmarks,
+      );
+      corrections = feedback.corrections;
+      closeness = feedback.closeness;
+    }
+
     _overlay.value = result.handCount > 0
-        ? _OverlayFrame(result, isCorrect)
+        ? _OverlayFrame(
+            result,
+            isCorrect,
+            corrections: corrections,
+            closeness: closeness,
+          )
         : null;
 
     // Streak tracking.
@@ -1580,12 +1624,25 @@ class _AiPracticeScreenState
           pulse = true;
         } else {
           final label = targetLabel ?? '';
-          message = label.isEmpty
-              ? 'Adjust your hand'
-              : "Form the '$label' sign";
-          color = AppColors.danger;
-          icon = Icons.adjust;
-          pulse = false;
+          // Prefer the specific, per-finger advice when the feedback engine has
+          // something. "Straighten your index finger" is actionable; "form the
+          // 'A' sign" is what the learner already tried and failed to do.
+          final correction = frame.corrections.isNotEmpty
+              ? frame.corrections.first.message
+              : null;
+          if (correction != null) {
+            message = correction;
+            color = AppColors.danger;
+            icon = Icons.adjust;
+            pulse = false;
+          } else {
+            message = label.isEmpty
+                ? 'Adjust your hand'
+                : "Form the '$label' sign";
+            color = AppColors.danger;
+            icon = Icons.adjust;
+            pulse = false;
+          }
         }
 
         return TweenAnimationBuilder<double>(

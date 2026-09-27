@@ -160,6 +160,30 @@ class HandGeometry {
       ringExtended &&
       pinkyExtended;
 
+  /// How far a finger is extended, as a continuous ratio of its tip-to-wrist
+  /// distance to its knuckle-to-wrist distance.
+  ///
+  /// The existing [indexExtended] family is boolean, which is enough to decide
+  /// *whether* a finger is out but not *how far off* it is. Corrective feedback
+  /// needs the magnitude to rank which mistake matters most and to phrase the
+  /// hint, so this exposes the underlying ratio.
+  ///
+  /// Roughly 1.0 when a finger is folded flat into the palm and 2.0 or more
+  /// when it is straight. Being a ratio of palm-normalized distances, it is
+  /// invariant to hand size, camera distance and hand rotation, like the rest
+  /// of this class.
+  double extensionRatio(int tipIndex, int knuckleIndex) {
+    final knuckleDist = _toWrist(knuckleIndex);
+    if (knuckleDist == 0) return 0;
+    return _toWrist(tipIndex) / knuckleDist;
+  }
+
+  double get indexExtensionRatio => extensionRatio(8, 5);
+  double get middleExtensionRatio => extensionRatio(12, 9);
+  double get ringExtensionRatio => extensionRatio(16, 13);
+  double get pinkyExtensionRatio => extensionRatio(20, 17);
+  double get thumbExtensionRatio => extensionRatio(4, 1);
+
   late final double thumbTipDist = _toWrist(4);
   late final double indexTipDist = _toWrist(8);
   late final double middleTipDist = _toWrist(12);
