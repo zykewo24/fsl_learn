@@ -12,6 +12,7 @@ import '../models/curriculum_drafts.dart';
 import '../models/sign_popularity_model.dart';
 import '../models/system_stats_model.dart';
 import '../models/user_role.dart';
+import 'row_payload.dart';
 
 /// Data access for the admin area: system analytics, learner management,
 /// curriculum authoring and the moderation log.
@@ -46,7 +47,7 @@ class AdminService {
         () => _supabase.rpc('admin_system_stats'),
       );
 
-      final row = _firstRow(data);
+      final row = firstRow(data);
 
       if (row == null) return SystemStatsModel.empty;
 
@@ -73,7 +74,7 @@ class AdminService {
         () => _supabase.rpc('admin_top_signs', params: {'row_limit': limit}),
       );
 
-      return _rowsOf(data)
+      return normaliseRows(data)
           .map(SignPopularityModel.fromMap)
           .toList(growable: false);
     } on PostgrestException catch (error) {
@@ -259,7 +260,7 @@ class AdminService {
           .order('sort_order')
           .order('id'),
     );
-    return _rowsOf(rows).map(LessonLevelModel.fromJson).toList(growable: false);
+    return normaliseRows(rows).map(LessonLevelModel.fromJson).toList(growable: false);
   }
 
   /// Modules belonging to [levelId], ordered for display.
@@ -272,7 +273,7 @@ class AdminService {
           .order('sort_order')
           .order('id'),
     );
-    return _rowsOf(rows)
+    return normaliseRows(rows)
         .map(LessonModuleModel.fromJson)
         .toList(growable: false);
   }
@@ -287,7 +288,7 @@ class AdminService {
           .order('sort_order')
           .order('id'),
     );
-    return _rowsOf(rows).map(LessonModel.fromJson).toList(growable: false);
+    return normaliseRows(rows).map(LessonModel.fromJson).toList(growable: false);
   }
 
   /// Signs belonging to [lessonId].
@@ -304,7 +305,7 @@ class AdminService {
           .order('sort_order')
           .order('id'),
     );
-    return _rowsOf(rows)
+    return normaliseRows(rows)
         .map(LessonSignModel.fromMap)
         .toList(growable: false);
   }
@@ -448,7 +449,7 @@ class AdminService {
           .limit(limit),
     );
 
-    return _rowsOf(rows).map(AuditLogModel.fromMap).toList(growable: false);
+    return normaliseRows(rows).map(AuditLogModel.fromMap).toList(growable: false);
   }
 
   // ==========================================================
@@ -462,24 +463,6 @@ class AdminService {
     return term;
   }
 
-  /// Normalises a PostgREST payload to a list of row maps.
-  ///
-  /// A `select()` returns a `List`; an `rpc()` returning `SETOF` may also come
-  /// back as a bare `Map` for a single row.
-  static List<Map<String, dynamic>> _rowsOf(PostgrestList response) {
-    return response;
-  }
-
-  /// First row of an RPC result, or `null` when the function returned nothing.
-  static Map<String, dynamic>? _firstRow(Object? data) {
-    if (data is List) {
-      if (data.isEmpty) return null;
-      final first = data.first;
-      return first is Map ? Map<String, dynamic>.from(first) : null;
-    }
-    if (data is Map) return Map<String, dynamic>.from(data);
-    return null;
-  }
 }
 
 /// Raised when an admin action is refused for a reason the user can act on.
