@@ -1,8 +1,23 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../features/admin/models/user_role.dart';
 import '../../models/profile_model.dart';
+import '../constants/app_config.dart';
 import '../utils/with_retry.dart';
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  /// Resolves the role a new account should start with.
+  ///
+  /// Only emails in the build-time [AppConfig.adminEmailAllowlist] start as
+  /// [UserRole.admin]. This is a development convenience, not a security
+  /// boundary — Postgres RLS policies from `supabase/admin_roles_and_rls.sql`
+  /// are what actually gate admin data, so a tampered client cannot use this
+  /// path to read or write anything an admin-only policy blocks.
+  UserRole resolveSignUpRole(String email) {
+    return AppConfig.isAllowlistedAdmin(email)
+        ? UserRole.admin
+        : UserRole.learner;
+  }
 
   Future<AuthResponse> signUp({
     required String fullName,
@@ -12,16 +27,31 @@ class AuthService {
     final AuthResponse response = await _supabase.auth.signUp(
       email: email,
       password: password,
+      // The database creates the profiles row from an auth.users trigger
+      // (public.handle_new_user), and it reads the display name from this
+      // metadata. Without it the row lands as "User" and the insert below
+      // conflicts, so the name the user just typed would be lost.
+      data: <String, dynamic>{'full_name': fullName.trim()},
     );
 
     final user = response.user;
 
     if (user != null) {
+      final role = resolveSignUpRole(email);
+
+      // Normally redundant: public.handle_new_user has already created this
+      // row from the auth.users insert, so this raises a primary-key conflict.
+      // It is kept as the fallback for a database where that trigger is
+      // missing, and the conflict is the expected outcome either way.
       try {
         await _supabase.from('profiles').insert({
           'id': user.id,
           'full_name': fullName,
           'email': email,
+          // Advisory only. guard_profile_insert() overwrites it with the role
+          // the database derives from public.admin_email_allowlist, so this is
+          // never what actually decides the account's access level.
+          'role': role.value,
         });
       } catch (_) {
         // Best-effort: the account was already created, so the sign-up
@@ -97,6 +127,31 @@ class AuthService {
 
   Stream<AuthState> get authStateChanges =>
       _supabase.auth.onAuthStateChange;
+
+  /// Reads the signed-in user's role from their `profiles` row.
+  ///
+  /// Returns [UserRole.learner] when there is no session, when the profile row
+  /// does not exist yet, or when the lookup fails — the route guard and the
+  /// admin UI both fail closed so a transient error can never widen access.
+  Future<UserRole> getCurrentRole() async {
+    final user = currentUser;
+
+    if (user == null) return UserRole.learner;
+
+    try {
+      return withTransientJwtRetry(() async {
+        final data = await _supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        return UserRole.fromValue(data?['role']);
+      });
+    } catch (_) {
+      return UserRole.learner;
+    }
+  }
 
   Future<ProfileModel?> getProfile() async {
     final user = currentUser;

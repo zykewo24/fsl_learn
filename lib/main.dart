@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
+import 'app/session_role.dart';
 import 'core/constants/app_config.dart';
+import 'core/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +24,17 @@ Future<void> main() async {
     url: AppConfig.supabaseUrl,
     publishableKey: AppConfig.supabaseAnonKey,
   );
+
+  // Resolve the role *before* the router exists. GoRouter's redirect callback
+  // is synchronous and reads the cached role, so a cold start that lands
+  // directly on /admin would otherwise be redirected away before the lookup
+  // ever ran. Failure is not fatal: the cache stays at the learner role and the
+  // admin area simply stays closed until the next refresh.
+  try {
+    SessionRole.update(await AuthService().getCurrentRole());
+  } catch (_) {
+    SessionRole.clear();
+  }
 
   runApp(
     const ProviderScope(

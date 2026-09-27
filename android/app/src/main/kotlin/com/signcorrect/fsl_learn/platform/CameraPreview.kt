@@ -86,7 +86,6 @@ class CameraPreview(
             result,
             resultBundle.inferenceTime
         )
-
     DetectionEventStream.send(
         mapOf(
             "handCount" to detection.handCount,

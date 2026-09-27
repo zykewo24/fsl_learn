@@ -48,6 +48,13 @@ android {
 
     buildTypes {
         release {
+            // R8 (run by the Flutter Gradle plugin for release builds) obfuscates
+            // the MediaPipe Task SDK classes that the hand-landmarker `.task`
+            // graph resolves by name at runtime, silently breaking live-stream
+            // detection results. Keep all classes untouched for release builds.
+            isMinifyEnabled = false
+            isShrinkResources = false
+
             // Falls back to the debug keystore on machines without key.properties
             // (fresh clones, CI), so local builds keep working out of the box.
             signingConfig = if (keystorePropertiesFile.exists()) {

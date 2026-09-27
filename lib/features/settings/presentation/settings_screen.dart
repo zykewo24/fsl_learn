@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/routes.dart';
 import '../../../core/ai/camera_control_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/profile_model.dart';
 import '../../../providers/profile_provider.dart';
+import '../../admin/controllers/admin_role_controller.dart';
 import '../models/settings_state.dart';
 import '../providers/settings_provider.dart';
 
@@ -18,6 +21,7 @@ class SettingsScreen extends ConsumerWidget {
 
     final settings = ref.watch(settingsProvider);
     final profileAsync = ref.watch(profileProvider);
+    final isAdmin = ref.watch(isAdminProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -30,6 +34,21 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           _AccountCard(profileAsync),
           const SizedBox(height: 24),
+
+          // Admin-only. The section is hidden for learners, and the router
+          // guard blocks /admin even if a link slips through.
+          if (isAdmin) ...[
+            const _SectionHeader(title: 'Administration'),
+            const SizedBox(height: 8),
+            _SettingsCard(
+              children: [
+                _AdminTile(
+                  onTap: () => _openAdmin(context, ref),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
 
           const _SectionHeader(title: 'Practice'),
           const SizedBox(height: 8),
@@ -121,6 +140,59 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _setLens(WidgetRef ref, CameraLens lens) async {
     await ref.read(settingsProvider.notifier).setCameraLens(lens);
     await CameraControlService.setLensFacing(lens);
+  }
+
+  /// Confirms admin access before navigating.
+  ///
+  /// The role is re-read rather than trusted from the cached value, so an admin
+  /// who was demoted in another session cannot walk in on a stale cache. If
+  /// access is gone the section disappears on the next rebuild instead of the
+  /// user bouncing off the router guard.
+  Future<void> _openAdmin(BuildContext context, WidgetRef ref) async {
+    final role = await ref.read(adminRoleProvider.notifier).refresh(force: true);
+
+    if (!context.mounted) return;
+
+    if (!role.isAdmin) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('You no longer have admin access.'),
+          ),
+        );
+      return;
+    }
+
+    context.push(AppRoutes.admin);
+  }
+}
+
+/// Entry point into the admin area, shown only to admins.
+class _AdminTile extends StatelessWidget {
+  const _AdminTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: const Icon(Icons.admin_panel_settings_outlined,
+          color: AppColors.primary),
+      title: const Text(
+        'Admin console',
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColors.text,
+        ),
+      ),
+      subtitle: const Text(
+        'Analytics, learners, curriculum and activity log',
+        style: TextStyle(color: AppColors.subtitle),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: AppColors.subtitle),
+    );
   }
 }
 
