@@ -358,6 +358,89 @@ void main() {
       expect(q.promptLabel, isNotEmpty);
     });
 
+    group('the readable sign label', () {
+      test('is used for both the prompt and the options', () {
+        // Sign-it prompts with the word and identify-it offers words, so both
+        // read through one function. If the modes each derived their own
+        // label they could disagree about what a sign is called, and the quiz
+        // would mark a correct answer wrong.
+        final s = sign('r', 'RED', title: 'Red');
+        expect(QuizQuestion(sign: s).promptLabel, readableSignLabel(s));
+        expect(readableSignLabel(s), 'Red');
+      });
+
+      test('falls back to a readable word with no title', () {
+        final s = LessonSignModel(
+          id: 'e',
+          lessonId: 'L1',
+          title: '',
+          description: '',
+          aiLabel: 'EXCUSE_ME',
+          difficulty: 'easy',
+          isActive: true,
+          sortOrder: 0,
+        );
+        expect(readableSignLabel(s), 'Excuse Me');
+      });
+
+      test('is never empty', () {
+        final s = LessonSignModel(
+          id: 'x',
+          lessonId: 'L1',
+          title: '',
+          description: '',
+          aiLabel: '___',
+          difficulty: 'easy',
+          isActive: true,
+          sortOrder: 0,
+        );
+        expect(readableSignLabel(s), isNotEmpty);
+      });
+    });
+
+    test('identify-it options are words, so the picture is not the answer', () {
+      // The old version of this mode rendered each option as its reference
+      // image, which meant the correct option was a pixel-identical copy of
+      // the prompt. A learner could score full marks by spotting the duplicate
+      // without knowing a single sign. The options are words now, so this
+      // asserts the labels a learner would actually be choosing between are
+      // distinct and human-readable.
+      final questions = QuizBuilder.build(
+        alphabet,
+        QuizMode.identifyIt,
+        count: 5,
+        random: Random(13),
+      );
+      expect(questions, isNotEmpty);
+
+      for (final q in questions) {
+        final labels = q.options.map(readableSignLabel).toList();
+        expect(labels.toSet().length, labels.length, reason: q.sign.id);
+        for (final l in labels) {
+          expect(l.trim(), isNotEmpty, reason: q.sign.id);
+        }
+      }
+    });
+
+    test('no identify-it option repeats the target word', () {
+      // With words as the options, two signs sharing a name would be
+      // indistinguishable, and the learner could be shown the same word twice
+      // with only one of them correct.
+      final questions = QuizBuilder.build(
+        alphabet,
+        QuizMode.identifyIt,
+        count: 5,
+        random: Random(17),
+      );
+      for (final q in questions) {
+        final target = readableSignLabel(q.sign);
+        final matches = q.options
+            .where((o) => readableSignLabel(o) == target)
+            .length;
+        expect(matches, 1, reason: 'target word "${q.sign.id}" must be unique');
+      }
+    });
+
     test('every question in a real quiz has a non-empty prompt', () {
       final letters = [
         for (final l in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) sign(l, l),

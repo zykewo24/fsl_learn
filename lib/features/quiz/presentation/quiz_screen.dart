@@ -178,13 +178,13 @@ class _QuestionPane extends ConsumerWidget {
                 Text(
                   state.mode == QuizMode.signIt
                       ? 'Show me this sign'
-                      : 'Which sign is this?',
+                      : 'What does this sign mean?',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 16),
                 // Production is prompted by the word, never by the picture.
-                // Reception (identify it) still needs the picture, because
-                // naming a sign you can see is the whole point of that mode.
+                // Reception (identify it) needs the picture, but the options
+                // are words, so the picture stays the only evidence on screen.
                 if (state.mode == QuizMode.signIt)
                   _WordPrompt(label: question.promptLabel)
                 else
@@ -239,7 +239,16 @@ class _QuestionPane extends ConsumerWidget {
   }
 }
 
-/// The four sign images to choose from.
+/// The four sign names to choose from, in [QuizMode.identifyIt].
+///
+/// The options are **words, not pictures**. This used to render each option's
+/// reference image, which handed over the answer: the prompt was one image and
+/// the correct option was the same image, so the question reduced to spotting
+/// the identical picture and could be passed without knowing a single sign.
+///
+/// Naming a sign you can see is the actual receptive skill, so the learner gets
+/// the picture and has to supply the word. Now the picture is the only evidence
+/// on screen and the answer has to come from their knowledge of it.
 class _OptionGrid extends StatelessWidget {
   final QuizQuestion question;
   final bool enabled;
@@ -253,12 +262,15 @@ class _OptionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
+      childAspectRatio: 2.2,
       children: [
         for (var i = 0; i < question.options.length; i++)
           InkWell(
@@ -267,8 +279,19 @@ class _OptionGrid extends StatelessWidget {
             child: Card(
               margin: EdgeInsets.zero,
               child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _SignImage(sign: question.options[i], size: 120),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Center(
+                  child: Text(
+                    readableSignLabel(question.options[i]),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

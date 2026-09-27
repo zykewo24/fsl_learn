@@ -1,15 +1,42 @@
 import '../../../models/lesson_sign_model.dart';
 
+/// A sign's name as a learner should read it, e.g. `Red` or `Excuse Me`.
+///
+/// Lives here rather than on [QuizQuestion] because both quiz modes now show
+/// words: sign-it prompts with the word to be produced, and identify-it offers
+/// words as the options. If the two modes each derived their own label they
+/// could disagree about what a sign is called, and the quiz would mark a
+/// correct answer wrong.
+String readableSignLabel(LessonSignModel sign) {
+  final title = sign.title.trim();
+  if (title.isNotEmpty) return title;
+
+  // Fall back to the recogniser's own label, which is shouty and underscored
+  // ("EXCUSE_ME"), and make it read as a word.
+  final raw = sign.aiLabel.trim();
+  final words = raw
+      .toLowerCase()
+      .split('_')
+      .where((word) => word.isNotEmpty)
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+
+  // A label made only of separators would render a blank card, leaving the
+  // learner asked to produce a sign with nothing to go on.
+  if (words.isNotEmpty) return words;
+  return raw.isNotEmpty ? raw : 'This sign';
+}
+
 /// How a quiz question is answered.
 enum QuizMode {
-  /// The learner is shown a sign and asked to *produce* it. Verified by the
-  /// camera, using the same recognisers, hold-to-confirm buffer and corrective
-  /// feedback as practice.
+  /// The learner is shown the sign's *name* and asked to produce it. Verified by
+  /// the camera, using the same recognisers, hold-to-confirm buffer and
+  /// corrective feedback as practice.
   signIt,
 
-  /// The learner is shown a sign and asked to *identify* it, choosing from
-  /// several sign images. Tests reception rather than production, and needs
-  /// no camera.
+  /// The learner is shown the sign's *picture* and asked to name it, choosing
+  /// from several words. Tests reception rather than production, and needs no
+  /// camera.
   identifyIt,
 }
 
@@ -23,7 +50,9 @@ extension QuizModeX on QuizMode {
         // Wording matters here: this used to promise a picture, and the picture
         // is exactly what was removed.
         QuizMode.signIt => "You'll see the word, not the sign. Produce it.",
-        QuizMode.identifyIt => 'Pick the sign that matches the picture',
+        // Was "pick the sign that matches the picture", which described the old
+        // image-for-image grid. The options are words now.
+        QuizMode.identifyIt => 'See the sign, name what it means',
       };
 }
 
@@ -61,25 +90,7 @@ class QuizQuestion {
   ///
   /// The image is still shown *after* they answer, in the verdict, where seeing
   /// it teaches rather than gives away.
-  String get promptLabel {
-    final title = sign.title.trim();
-    if (title.isNotEmpty) return title;
-
-    // Fall back to the recogniser's own label, which is shouty and underscored
-    // ("EXCUSE_ME"), and make it read as a word.
-    final raw = sign.aiLabel.trim();
-    final words = raw
-        .toLowerCase()
-        .split('_')
-        .where((word) => word.isNotEmpty)
-        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
-        .join(' ');
-
-    // A label made only of separators would render a blank card, leaving the
-    // learner asked to produce a sign with nothing to go on.
-    if (words.isNotEmpty) return words;
-    return raw.isNotEmpty ? raw : 'This sign';
-  }
+  String get promptLabel => readableSignLabel(sign);
 }
 
 /// One answered question.
