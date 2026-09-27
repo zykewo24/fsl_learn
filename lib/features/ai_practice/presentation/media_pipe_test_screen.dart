@@ -11,6 +11,7 @@ import '../models/finger_state.dart';
 import '../models/gesture_debug_data.dart';
 import '../models/recognition_result.dart';
 import '../recognition/gesture_recognizer.dart';
+import '../recognition/tuning.dart';
 import '../services/a_calibration_tracker.dart';
 import '../services/detection_stream.dart';
 import '../services/finger_state_detector.dart';
@@ -241,6 +242,134 @@ body: Platform.isAndroid
             _buildRecognitionSection(),
             const SizedBox(height: 12),
             _buildCalibrationSection(),
+            const SizedBox(height: 12),
+            _buildTuningSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The live values of every recognition threshold, with what each one does.
+  ///
+  /// Collapsed by default: it is long, and the numbers above it are what you
+  /// actually watch while holding a sign. Open it when something will not
+  /// recognise and you need to know what it is being compared against.
+  ///
+  /// The values are read from [RecognitionTuning] at build time, which is the
+  /// same place the recognisers read them from, so this cannot report a number
+  /// the app is not using.
+  Widget _buildTuningSection() {
+    final entries = RecognitionTuning.entries;
+
+    // Preserve declaration order while grouping, so the section order matches
+    // the order in tuning.dart.
+    final groups = <String, List<TuningEntry>>{};
+    for (final e in entries) {
+      groups.putIfAbsent(e.group, () => <TuningEntry>[]).add(e);
+    }
+
+    return Card(
+      color: const Color(0xFF111827),
+      child: Theme(
+        // The parent card is already dark; keep the expansion tile from
+        // repainting its header in a light theme colour.
+        data: ThemeData.dark(),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          title: const Text(
+            'Tuning constants',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          subtitle: Text(
+            '${entries.length} thresholds in use',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+          children: [
+            const Text(
+              'These were set against synthetic hands, not a camera. '
+              'If a sign will not lock on, adjust the one below that governs '
+              'it, rebuild, and watch the live readout above.',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (final group in groups.entries) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 4),
+                child: Text(
+                  group.key,
+                  style: const TextStyle(
+                    color: Color(0xFF93C5FD),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              for (final e in group.value)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              e.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            e.value,
+                            style: const TextStyle(
+                              color: Color(0xFF6EE7B7),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        e.meaning,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                      Text(
+                        e.tuning,
+                        style: const TextStyle(
+                          color: Color(0xFFFCD34D),
+                          fontSize: 12,
+                          height: 1.3,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),

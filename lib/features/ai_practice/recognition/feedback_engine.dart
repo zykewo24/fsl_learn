@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../models/landmark.dart';
 import 'hand_geometry.dart';
 import 'reference/reference_signs.dart';
+import 'tuning.dart';
 
 /// Which part of the hand a correction is about.
 ///
@@ -103,29 +104,15 @@ class SignFeedback {
 /// tolerance makes the app nagging rather than more accurate, because a
 /// learner's hand will never exactly match a canonical pose.
 class FeedbackEngine {
-  /// How far a finger's extension may differ from the reference, as a fraction
-  /// of the reference value, before a fine-tuning hint is raised.
-  ///
-  /// Only applied once both the attempt and the reference are in the same broad
-  /// category; see [_curledMax] and [_extendedMin] for the category test.
-  static const double _extensionTolerance = 0.30;
-
-  /// Extension ratio at or below which a finger counts as folded into the palm.
-  static const double _curledMax = 1.7;
-
-  /// Extension ratio at or above which a finger counts as straight.
-  static const double _extendedMin = 2.6;
-
-  /// The same, for the gaps between the thumb and the fingertips, in
-  /// palm-widths. These are absolute because they are already normalized.
-  static const double _gapTolerance = 0.22;
-
-  /// How many corrections to return. A learner can act on one or two hints at a
-  /// time; a list of six is noise.
-  static const int _maxCorrections = 2;
-
-  /// Extension above this counts as a spread-out hand.
-  static const double _spreadThreshold = 0.25;
+  // The tolerances now live in RecognitionTuning so the camera test screen can
+  // display the live values. They were never validated against a camera; see
+  // the tuning note there and at the top of this class.
+  static const double _extensionTolerance = RecognitionTuning.extensionTolerance;
+  static const double _curledMax = RecognitionTuning.curledMax;
+  static const double _extendedMin = RecognitionTuning.extendedMin;
+  static const double _gapTolerance = RecognitionTuning.gapTolerance;
+  static const int _maxCorrections = RecognitionTuning.maxCorrections;
+  static const double _spreadThreshold = RecognitionTuning.spreadThreshold;
 
   static const Map<HandPart, String> _fingerNames = {
     HandPart.indexFinger: 'index finger',

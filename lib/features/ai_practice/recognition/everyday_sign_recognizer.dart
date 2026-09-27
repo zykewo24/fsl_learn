@@ -1,5 +1,6 @@
 import '../models/detection_result.dart';
 import 'gesture_recognizer.dart';
+import 'tuning.dart';
 
 /// Where the hand is in the frame, as a normalized y-band.
 ///
@@ -122,36 +123,39 @@ class EverydaySignRecognizer {
   /// Wrist landmark index in the 21-point MediaPipe hand model.
   static const int _wristIndex = 0;
 
-  static const Duration _windowDuration = Duration(milliseconds: 1200);
+  // Moved to RecognitionTuning so the camera test screen can show the live
+  // values while a hand is in frame. See the tuning note on [RecognitionTuning].
+  static const Duration _windowDuration = RecognitionTuning.motionWindow;
 
   /// Frames below which no pattern can be judged. At ~20fps this is ~250ms of
   /// visible movement.
-  static const int _minSamples = 5;
+  static const int _minSamples = RecognitionTuning.motionMinSamples;
 
   /// Minimum direction reversals on the dominant axis to read as a wave.
   ///
   /// Lower than the greeting recogniser's 3 because these are small repeated
   /// movements (a nod, a shake) rather than large waves.
-  static const int _minWaveReversals = 2;
+  static const int _minWaveReversals = RecognitionTuning.minWaveReversals;
 
   /// Minimum net travel, in normalized frame units, to read as intentional.
-  static const double _minNetDisplacement = 0.06;
+  static const double _minNetDisplacement = RecognitionTuning.minNetDisplacement;
 
   /// Maximum reversals tolerated for a [EverydayMotion.sweep]. More than this
   /// means it was a wave, not a single sweep.
-  static const int _maxSweepReversals = 1;
+  static const int _maxSweepReversals = RecognitionTuning.maxSweepReversals;
 
   /// A wave on one axis must be quiet on the other. Without this a circular
   /// motion satisfies the horizontal-wave rule as well, and whichever axis
   /// pattern happened to come first in the table would swallow the circular
   /// signs - a circle read as NO instead of PLEASE.
-  static const int _maxWaveCrossAxisReversals = 1;
+  static const int _maxWaveCrossAxisReversals =
+      RecognitionTuning.maxWaveCrossAxisReversals;
 
   /// How much of the movement must be on one axis for a wave to count as
   /// vertical or horizontal rather than circular. 0..1.
-  static const double _axisDominance = 0.65;
+  static const double _axisDominance = RecognitionTuning.axisDominance;
 
-  static const double _confMax = 0.35;
+  static const double _confMax = RecognitionTuning.motionConfidenceMax;
 
   /// Every label this recogniser can emit.
   static const Set<String> everydayLabels = {
