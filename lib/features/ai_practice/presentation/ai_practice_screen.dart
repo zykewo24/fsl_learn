@@ -20,6 +20,7 @@ import '../models/detection_result.dart';
 import '../models/recognition_result.dart';
 import '../providers/ai_session_provider.dart';
 import '../recognition/emergency_motion_recognizer.dart';
+import '../recognition/everyday_sign_recognizer.dart';
 import '../recognition/gesture_recognizer.dart';
 import '../recognition/dwell_gate.dart';
 import '../recognition/greeting_motion_recognizer.dart';
@@ -115,6 +116,8 @@ class _AiPracticeScreenState
 
   final EmergencyMotionRecognizer _emergencyRecognizer =
       EmergencyMotionRecognizer();
+
+  final EverydaySignRecognizer _everydayRecognizer = EverydaySignRecognizer();
 
   StreamSubscription<DetectionResult>? _subscription;
 
@@ -360,9 +363,19 @@ class _AiPracticeScreenState
     final greeting = _greetingRecognizer.feed(result);
     final emergency = _emergencyRecognizer.feed(result);
 
+    // Only run the everyday recogniser when the active lesson actually contains
+    // an everyday sign, mirroring how the greeting and emergency recognisers
+    // are scoped. It also reuses the static handshape, so it must be fed the
+    // same frame the static recogniser saw.
+    final everyday = _everydayRecognizer.feed(
+      result,
+      staticLabel: recognition.label,
+      staticConfidence: recognition.confidence,
+    );
+
     controller.setDetecting(result.handCount > 0);
 
-    final motionLabel = greeting ?? emergency;
+    final motionLabel = greeting ?? emergency ?? everyday;
 
     _recognitionDebug.value = _RecognitionDebug(
       handCount: result.handCount,
@@ -397,6 +410,14 @@ class _AiPracticeScreenState
         } else if (EmergencyMotionRecognizer.isEmergencyLabel(canonical)) {
           if (emergency != null && canonical == emergency) {
             matchedLabel = emergency;
+            matchConfidence = 1.0;
+            staticallyMatched = true;
+            break;
+          }
+        } else if (EverydaySignRecognizer.isEverydayLabel(canonical)) {
+          if (everyday != null &&
+              EverydaySignRecognizer.normalise(canonical) == everyday) {
+            matchedLabel = everyday;
             matchConfidence = 1.0;
             staticallyMatched = true;
             break;
@@ -642,6 +663,10 @@ class _AiPracticeScreenState
     });
     _greetingRecognizer.reset();
     _emergencyRecognizer.reset();
+    // The everyday recogniser's window belongs to one sign. Carrying it across
+    // a change of sign would let the tail of the previous gesture satisfy the
+    // next sign's movement requirement immediately.
+    _everydayRecognizer.reset();
   }
 
   /// Compact controls for focus mode (one-sign-at-a-time), the progress
